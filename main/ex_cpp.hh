@@ -24,16 +24,29 @@
 #define NO_PENDING_EVENTS 0
 #define NOT_TRIGGERED 0
 
+#define BACKUP_START_SW_HELD_ITERATION 2
+
 //---------
 // Variables
 extern uint32_t events_g;
+extern bool bStarted_g;
 
 //---------
 // Function Prototypes
+void init_state(void);
 void init_timers(void);
 void process_event(void);
 void process_main_loop(void);
+void start_animation(void);
+void stop_animation(void);
+void debounce_input_pins(void);
+bool magnet_detected(void);
+bool switch_pressed(void);
+uint32_t duration_sw_held(void);
+bool showtime_expired(void);
 
+//---------
+// ISR Function Prototypes
 void timer_1_handler(void);
 
 #endif // EX_CPP_H

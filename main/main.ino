@@ -1,7 +1,9 @@
 #include "ex_cpp.hh"
 
 void setup() {
+  Serial.println("Initializing");
   // Initialize Variables
+  init_state();
 
   // Initialize Sense Pin
 
@@ -11,6 +13,9 @@ void setup() {
   init_timers();
 
   // Initialize PWMs
+
+  // Ensure that device is not animating
+  stop_animation();
 }
 
 void loop() {
