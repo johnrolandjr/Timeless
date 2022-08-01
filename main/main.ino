@@ -1,8 +1,3 @@
-#include <TimerInterrupt.h>
-#include <TimerInterrupt.hpp>
-#include <ISR_Timer.h>
-#include <ISR_Timer.hpp>
-
 #include "ex_cpp.hh"
 
 void setup() {
@@ -13,12 +8,15 @@ void setup() {
   // Initialize Backup Start Pin
 
   // Initialize Timers
+  init_timers();
 
   // Initialize PWMs
 }
 
 void loop() {
-  // Main entry point of loop code
-  // Timer # is set up to periodically set a global event variable.
-  ex_func();
+  // If an event is present, perform the necessary action
+  if (events_g != NO_PENDING_EVENTS)
+  {
+    process_event();
+  }
 }
