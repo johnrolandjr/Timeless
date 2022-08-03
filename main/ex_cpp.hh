@@ -26,13 +26,21 @@
 
 #define BACKUP_START_SW_HELD_ITERATION 2
 
+//#define DEBUG
+// DIFFERENT Print macros determined whether debug is enabled
+#if defined(DEBUG)
+  #define my_printf(...) Serial.println(__VA_ARGS__)
+#else
+  #define my_printf(...) ;
+#endif // DEBUG
 //---------
 // Variables
 extern uint32_t events_g;
 extern bool bStarted_g;
 
 //---------
-// Function Prototypes
+// Function Prototypes 
+void init_serial(void);
 void init_state(void);
 void init_timers(void);
 void process_event(void);

@@ -1,7 +1,12 @@
 #include "ex_cpp.hh"
 
 void setup() {
-  Serial.println("Initializing");
+  #if defined(DEBUG)
+    // Init Serial Debug
+    init_serial();
+    my_printf("Initializing");
+  #endif
+  
   // Initialize Variables
   init_state();
 

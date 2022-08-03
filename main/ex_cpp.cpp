@@ -33,7 +33,7 @@ void process_main_loop(void)
   if (bStarted_g)
   {
     // Currently animating. Check to see whether it's time to end now.
-    Serial.println("A");
+    my_printf("A");
     if (showtime_expired() || !magnet_detected())
     {
       stop_animation();
@@ -42,7 +42,7 @@ void process_main_loop(void)
   else
   {
     // Currently not animating. Check to see whether it's time to start now.
-    Serial.println("X");
+    my_printf("X");
     if (magnet_detected() || (duration_sw_held() > BACKUP_START_SW_HELD_ITERATION))
     {
       start_animation();
@@ -52,13 +52,13 @@ void process_main_loop(void)
 
 void start_animation(void)
 {
-  Serial.println("Start Animation");
+  my_printf("Start Animation");
   bStarted_g = true;
 }
 
 void stop_animation(void)
 {
-  Serial.println("Stop Animation");
+  my_printf("Stop Animation");
   bStarted_g = false;
 }
 
@@ -95,6 +95,12 @@ bool showtime_expired(void)
   return true;
 }
 
+void init_serial(void)
+{
+  // initialize serial communication at 9600 bits per second:
+  Serial.begin(9600);
+}
+
 void init_state(void)
 {
   bStarted_g = false;
@@ -106,8 +112,12 @@ void init_timers(void)
   
   ITimer1.init();
   // Interval in unsigned long millisecs
+#if defined(DEBUG)
   if (ITimer1.attachInterruptInterval(TIMER_1_INTERVAL_MS, timer_1_handler))
-    Serial.println("Starting  ITimer OK, millis() = " + String(millis()));
+    my_printf("Starting  ITimer OK, millis() = " + String(millis()));
   else
-    Serial.println("Can't set ITimer. Select another freq. or timer");
+    my_printf("Can't set ITimer. Select another freq. or timer");
+#else
+  ITimer1.attachInterruptInterval(TIMER_1_INTERVAL_MS, timer_1_handler);
+#endif // DEBUG
 }
