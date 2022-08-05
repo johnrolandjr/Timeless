@@ -17,7 +17,7 @@
 #define BRD_LED_PIN LED_BUILTIN
 
 // Timer Compare Outputs
-#define LED_PIN 		?
-#define MAG_ACT_PIN 	?
+//#define LED_PIN 		1
+#define MAG_ACT_PIN 	2
 
 #endif // PINS_H

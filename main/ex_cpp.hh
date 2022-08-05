@@ -20,13 +20,20 @@
 // Event values
 #define TIMER_1_ISR_EVT   (1<<0)
 
-#define TIMER_1_INTERVAL_MS 1000L
+#define TIMER_1_INTERVAL_MS 200L
 #define NO_PENDING_EVENTS 0
 #define NOT_TRIGGERED 0
 
+#define SHOWTIME_DURATION_S   (5)
+#define SHOWTIME_DURATION_MS  (SHOWTIME_DURATION_S * 1000)
+#define SHOWTIME_DURATION     (SHOWTIME_DURATION_MS / TIMER_1_INTERVAL_MS)
+
 #define BACKUP_START_SW_HELD_ITERATION 2
 
-//#define DEBUG
+#define MAG_STATE_DETECTED    0
+#define MAG_STATE_NOT_PRESENT 1
+
+#define DEBUG
 // DIFFERENT Print macros determined whether debug is enabled
 #if defined(DEBUG)
   #define my_printf(...) Serial.println(__VA_ARGS__)
@@ -42,6 +49,7 @@ extern bool bStarted_g;
 // Function Prototypes 
 void init_serial(void);
 void init_state(void);
+void init_pins(void);
 void init_timers(void);
 void process_event(void);
 void process_main_loop(void);

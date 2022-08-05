@@ -10,9 +10,8 @@ void setup() {
   // Initialize Variables
   init_state();
 
-  // Initialize Sense Pin
-
-  // Initialize Backup Start Pin
+  // Initialize GPIO Pins
+  init_pins();
 
   // Initialize Timers
   init_timers();
