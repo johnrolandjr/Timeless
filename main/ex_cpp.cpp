@@ -9,6 +9,7 @@
 
 uint32_t events_g;
 bool bStarted_g;
+uint32_t backup_sw_cnt_g;
 int32_t showtime_count_g;
 
 void process_event(void)
@@ -31,7 +32,6 @@ void process_event(void)
 
 void process_main_loop(void)
 {
-  debounce_input_pins();
   if (bStarted_g)
   {
     // Currently animating. Check to see whether it's time to end now.
@@ -43,7 +43,7 @@ void process_main_loop(void)
   else
   {
     // Currently not animating. Check to see whether it's time to start now.
-    if (magnet_detected() || (duration_sw_held() > BACKUP_START_SW_HELD_ITERATION))
+    if (magnet_detected() || (duration_sw_held() > BACKUP_SW_HELD_DURATION))
     {
       start_animation();
     }
@@ -69,6 +69,7 @@ void stop_animation(void)
 {
   my_printf("Stop Animation");
   bStarted_g = false;
+  backup_sw_cnt_g = 0;
 #if defined(DEBUG)
   // As a visual que, blink led 3 times
   for (int i=0; i<3; i++)
@@ -87,11 +88,6 @@ void timer_1_handler(void)
   events_g |= TIMER_1_ISR_EVT;
 }
 
-void debounce_input_pins(void)
-{
-  // Don't need to debounce any pins as we are sampling slow enough
-}
-
 bool magnet_detected(void)
 {
   int state = digitalRead(MAG_ACT_PIN);
@@ -99,15 +95,15 @@ bool magnet_detected(void)
   return (state == MAG_STATE_DETECTED);
 }
 
-bool switch_pressed(void)
-{
-  // TODO implement once debounce_input_pins is implemented
-  return false;
-}
 uint32_t duration_sw_held(void)
 {
-  // Todo implemente
-  return 0;
+  int state = digitalRead(BK_UP_PIN);
+  backup_sw_cnt_g++;
+
+  if (state == BACKUP_SW_STATE_RELEASED)
+    backup_sw_cnt_g = 0;
+
+  return backup_sw_cnt_g;
 }
 
 bool showtime_expired(void)
@@ -135,6 +131,9 @@ void init_pins(void)
 {
   // Initialize magnet pin as digital input
   pinMode(MAG_ACT_PIN, INPUT);
+
+  // Initialize backup switch as digital input
+  pinMode(BK_UP_PIN, INPUT);
 
 #if defined(DEBUG)
   // Initialize Board LED for debug

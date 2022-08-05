@@ -19,5 +19,6 @@
 // Timer Compare Outputs
 //#define LED_PIN 		1
 #define MAG_ACT_PIN 	2
+#define BK_UP_PIN     3
 
 #endif // PINS_H

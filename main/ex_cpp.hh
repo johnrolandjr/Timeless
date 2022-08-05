@@ -28,10 +28,14 @@
 #define SHOWTIME_DURATION_MS  (SHOWTIME_DURATION_S * 1000)
 #define SHOWTIME_DURATION     (SHOWTIME_DURATION_MS / TIMER_1_INTERVAL_MS)
 
-#define BACKUP_START_SW_HELD_ITERATION 2
+#define BACKUP_SW_HELD_DURATION_S   (1)
+#define BACKUP_SW_HELD_DURATION_MS  (BACKUP_SW_HELD_DURATION_S * 1000)
+#define BACKUP_SW_HELD_DURATION     (BACKUP_SW_HELD_DURATION_MS / TIMER_1_INTERVAL_MS)
 
-#define MAG_STATE_DETECTED    0
-#define MAG_STATE_NOT_PRESENT 1
+#define MAG_STATE_DETECTED        0
+#define MAG_STATE_NOT_PRESENT     1
+#define BACKUP_SW_STATE_PRESSED   0
+#define BACKUP_SW_STATE_RELEASED  1
 
 #define DEBUG
 // DIFFERENT Print macros determined whether debug is enabled
@@ -55,9 +59,7 @@ void process_event(void);
 void process_main_loop(void);
 void start_animation(void);
 void stop_animation(void);
-void debounce_input_pins(void);
 bool magnet_detected(void);
-bool switch_pressed(void);
 uint32_t duration_sw_held(void);
 bool showtime_expired(void);
 
