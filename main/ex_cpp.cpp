@@ -63,6 +63,7 @@ void start_animation(void)
 
   // Turn on PWM Led
   analogWrite(PWM_LED_PIN, 128);
+  analogWrite(PWM_MAG_PIN, 128);
 
   #if defined(DEBUG)
     // As a visual que, blink led 1 time
@@ -78,8 +79,9 @@ void stop_animation(void)
   bStarted_g = false;
   backup_sw_cnt_g = 0;
 
-  // Turn on PWM Led
+  // Turn on PWMs (LED and MAGNET)
   analogWrite(PWM_LED_PIN, 0);
+  analogWrite(PWM_MAG_PIN, 0);
   
   #if defined(DEBUG)
     // As a visual que, blink led 3 times
@@ -101,7 +103,7 @@ void timer_1_handler(void)
 
 bool magnet_detected(void)
 {
-  int state = digitalRead(MAG_ACT_PIN);
+  int state = digitalRead(MAG_DETECT_PIN);
   
   return (state == MAG_STATE_DETECTED);
 }
@@ -141,13 +143,16 @@ void init_state(void)
 void init_pins(void)
 {
   // Initialize magnet pin as digital input
-  pinMode(MAG_ACT_PIN, INPUT);
+  pinMode(MAG_DETECT_PIN, INPUT);
 
   // Initialize backup switch as digital input
   pinMode(BK_UP_PIN, INPUT);
 
   // Initialize led pwm pin as digital output
   pinMode(PWM_LED_PIN, OUTPUT);
+
+  // Initialize mag pwm pin as digital output
+  pinMode(PWM_MAG_PIN, OUTPUT);
 
   #if defined(DEBUG)
     // Initialize Board LED for debug
@@ -182,12 +187,8 @@ void init_timers(void)
   #endif // DEBUG
 }
 
-void get_timer_cfg(void)
+void print_timer_0_cfg(void)
 {
-  uint16_t h;
-  uint16_t l;
-  uint16_t u16val;
-
   my_printf("Timer 0");
   my_printf("----------------------------------- ");
   my_printf("TCCR0A = 0x" + String(TCCR0A, HEX));
@@ -198,6 +199,13 @@ void get_timer_cfg(void)
   my_printf("TIMSK0 = 0x" + String(TIMSK0, HEX));
   my_printf("TIFR0 = 0x" + String(TIFR0, HEX));
   my_printf("----------------------------------- ");
+}
+
+void print_timer_1_cfg(void)
+{
+  uint16_t h;
+  uint16_t l;
+  uint16_t u16val;
 
   my_printf("Timer 1 (most likely used by delay()");
   my_printf("----------------------------------- ");
@@ -219,7 +227,10 @@ void get_timer_cfg(void)
   my_printf("TIMSK1 = 0x" + String(TIMSK1, HEX));
   my_printf("TIFR1 = 0x" + String(TIFR1, HEX));
   my_printf("----------------------------------- ");
+}
 
+void print_timer_2_cfg(void)
+{
   my_printf("Timer 2");
   my_printf("----------------------------------- ");
   my_printf("TCCR2A = 0x" + String(TCCR2A, HEX));
@@ -232,4 +243,20 @@ void get_timer_cfg(void)
   my_printf("ASSR = 0x" + String(ASSR, HEX));
   my_printf("GTCCR = 0x" + String(GTCCR, HEX));
   my_printf("----------------------------------- ");
+}
+
+void print_timer_cfg(void)
+{
+  print_timer_0_cfg();
+  //print_timer_1_cfg();
+  //print_timer_2_cfg();
+
+  // Modify the mode for time 0, and readback to verify
+  // Updating WGM 3 -> 7
+  TCCR0B |= bit(3);
+  // Updating OCRA to 0xFF (to ensure same frequency)
+  OCR0A = 0xFF;
+  
+  //Readback Verify
+  print_timer_0_cfg();
 }

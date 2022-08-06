@@ -65,7 +65,10 @@ bool magnet_detected(void);
 uint32_t duration_sw_held(void);
 bool showtime_expired(void);
 
-void get_timer_cfg(void);
+void print_timer_0_cfg(void);
+void print_timer_1_cfg(void);
+void print_timer_2_cfg(void);
+void print_timer_cfg(void);
 
 //---------
 // ISR Function Prototypes
