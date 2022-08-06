@@ -37,6 +37,8 @@
 #define BACKUP_SW_STATE_PRESSED   0
 #define BACKUP_SW_STATE_RELEASED  1
 
+#define DISABLE_BACKUP_SWITCH
+
 #define DEBUG
 // DIFFERENT Print macros determined whether debug is enabled
 #if defined(DEBUG)
@@ -62,6 +64,8 @@ void stop_animation(void);
 bool magnet_detected(void);
 uint32_t duration_sw_held(void);
 bool showtime_expired(void);
+
+void get_timer_cfg(void);
 
 //---------
 // ISR Function Prototypes

@@ -17,7 +17,7 @@
 #define BRD_LED_PIN LED_BUILTIN
 
 // Timer Compare Outputs
-//#define LED_PIN 		1
+#define PWM_LED_PIN   6
 #define MAG_ACT_PIN 	2
 #define BK_UP_PIN     3
 

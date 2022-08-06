@@ -20,6 +20,9 @@ void setup() {
 
   // Ensure that device is not animating
   stop_animation();
+
+  // Curious, what are the timer default values
+  get_timer_cfg();
 }
 
 void loop() {
