@@ -56,10 +56,22 @@ void process_main_loop(void)
 
 void start_animation(void)
 {
+  int32_t period_ticks, period_shift, period_delta;
   my_printf("Start Animation");
 
   bStarted_g = true;
   showtime_count_g = SHOWTIME_DURATION;
+
+  // In the future, we may read an analog voltage and change the delta periods between magnet and led.
+  // CLKio (16Mhz) with a prescaler of 1024 => 15625 tick/sec -> (61Hz - 15.625 kHz) with a resolution of 60Hz...
+  // That's too big of a resolution
+  period_ticks = 195; // Aiming for 80Hz. 80Hz = 125ms. 16Mhz / 1024 = 15625 ticks / sec. -> 195 ticks
+  period_shift = 0;
+  period_delta = 2; // Aiming for 2Hz. 2Hz = .5s / 4 [us/tick] = 
+
+  // Update the frequencies prior to turning them on
+  update_led_freq(period_ticks + period_shift);
+  update_mag_freq(period_ticks + period_shift + period_delta);
 
   // Turn on PWM Led
   analogWrite(PWM_LED_PIN, 128);
@@ -68,7 +80,7 @@ void start_animation(void)
   #if defined(DEBUG)
     // As a visual que, blink led 1 time
     digitalWrite(BRD_LED_PIN, HIGH);
-    delay(100);
+    my_delay(100);
     digitalWrite(BRD_LED_PIN, LOW);
   #endif // DEBUG
 }
@@ -88,11 +100,23 @@ void stop_animation(void)
     for (int i=0; i<3; i++)
     {
       digitalWrite(BRD_LED_PIN, HIGH);
-      delay(100);
+      my_delay(100);
       digitalWrite(BRD_LED_PIN, LOW);
-      delay(200);
+      my_delay(200);
     }
   #endif // DEBUG
+}
+
+void update_led_freq(uint32_t ticks)
+{
+  // Updating OCRA which controls the period
+  OCR0A = (ticks > 255) ? 0xFF : ticks;
+}
+
+void update_mag_freq(uint32_t ticks)
+{
+  // Updating OCRA which controls the period
+  OCR2A = (ticks > 255) ? 0xFF : ticks;
 }
 
 void timer_1_handler(void)
@@ -129,15 +153,35 @@ bool showtime_expired(void)
 
 void init_serial(void)
 {
+  const uint32_t prescaler = SYS_PRESCALER;
+
   #if defined(DEBUG)
     // initialize serial communication at 9600 bits per second:
-    Serial.begin(9600);
+    Serial.begin(1200 * prescaler);
   #endif // DEBUG
+
+  noInterrupts();
+  CLKPR = _BV(CLKPCE);  // enable change of the clock prescaler
+  CLKPR = 6;  // divide frequency by 64(=6)
+  interrupts();
 }
 
 void init_state(void)
 {
   bStarted_g = false;
+
+  /*
+  To avoid unintentional changes of clock frequency, a special write procedure must be followed to change the
+  CLKPS bits:
+  1. Write the Clock Prescaler Change Enable (CLKPCE) bit to one and all other bits in CLKPR to zero.
+  2. Within four cycles, write the desired value to CLKPS while writing a zero to CLKPCE.
+  Interrupts must be disabled when changing prescaler setting to make sure the write procedure is not interrupted.
+  */
+  // noInterrupts();
+  // CLKPR |= bit(7); // Setting CLKPCE to 1. Clock prescaler change enable
+  // CLKPR = 0x80; // Clear Clock Prescale old scaler by writing 0x80
+  // CLKPR = 4; // Set new prescaler to DIV_16=4
+  // interrupts();
 }
 
 void init_pins(void)
@@ -163,9 +207,9 @@ void init_pins(void)
     for (int i=0; i<3; i++)
     {
       digitalWrite(BRD_LED_PIN, HIGH);
-      delay(100);
+      my_delay(100);
       digitalWrite(BRD_LED_PIN, LOW);
-      delay(200);
+      my_delay(200);
     }
   #endif //DEBUG
 }
@@ -175,6 +219,20 @@ void init_timers(void)
   events_g = NO_PENDING_EVENTS;
   
   ITimer1.init();
+
+  // Initialize Timer0 and Timer1
+  // Updating WGM 3 -> 7
+  TCCR0B |= 7;
+  TCCR2B |= 7;
+  // Up the prescaler to make it much slower
+  // 16Mhz / prescaler(1024) -> 15.625 kHz
+  TCCR0B &= 0xF8; // clear the CS field
+  TCCR0B |= 5; // 5 = 1024 prescaler
+  TCCR2B &= 0xF8; // clear the CS field
+  TCCR2B |= 5; // 5 = 1024 prescaler
+  // Updating OCRA to 0xFF (to ensure same frequency)
+  OCR0A = 0xFF;
+  OCR2A = 0xFF;
 
   // Interval in unsigned long millisecs
   #if defined(DEBUG)
@@ -247,16 +305,13 @@ void print_timer_2_cfg(void)
 
 void print_timer_cfg(void)
 {
-  print_timer_0_cfg();
-  //print_timer_1_cfg();
-  //print_timer_2_cfg();
-
-  // Modify the mode for time 0, and readback to verify
-  // Updating WGM 3 -> 7
-  TCCR0B |= bit(3);
-  // Updating OCRA to 0xFF (to ensure same frequency)
-  OCR0A = 0xFF;
+  // print out system prescaler
+  my_printf("System");
+  my_printf("----------------------------------- ");
+  my_printf("CLKPR = 0x" + String(CLKPR, HEX));
+  my_printf("----------------------------------- ");
   
-  //Readback Verify
   print_timer_0_cfg();
+  print_timer_1_cfg();
+  print_timer_2_cfg();
 }

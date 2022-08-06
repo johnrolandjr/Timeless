@@ -46,6 +46,10 @@
 #else
   #define my_printf(...) ;
 #endif // DEBUG
+
+#define SYS_PRESCALER (64)
+#define my_delay(...) delay((uint32_t)((__VA_ARGS__) / SYS_PRESCALER))
+
 //---------
 // Variables
 extern uint32_t events_g;
@@ -61,6 +65,8 @@ void process_event(void);
 void process_main_loop(void);
 void start_animation(void);
 void stop_animation(void);
+void update_led_freq(uint32_t ticks);
+void update_mag_freq(uint32_t ticks);
 bool magnet_detected(void);
 uint32_t duration_sw_held(void);
 bool showtime_expired(void);
