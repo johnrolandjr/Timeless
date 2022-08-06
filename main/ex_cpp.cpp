@@ -65,7 +65,7 @@ void start_animation(void)
   // In the future, we may read an analog voltage and change the delta periods between magnet and led.
   // CLKio (16Mhz) with a prescaler of 1024 => 15625 tick/sec -> (61Hz - 15.625 kHz) with a resolution of 60Hz...
   // That's too big of a resolution
-  period_ticks = 195; // Aiming for 80Hz. 80Hz = 125ms. 16Mhz / 1024 = 15625 ticks / sec. -> 195 ticks
+  period_ticks = 128; // Aiming for 80Hz. 80Hz = 125ms. 16Mhz / 1024 = 15625 ticks / sec. -> 195 ticks
   period_shift = 0;
   period_delta = 2; // Aiming for 2Hz. 2Hz = .5s / 4 [us/tick] = 
 
@@ -79,9 +79,7 @@ void start_animation(void)
 
   #if defined(DEBUG)
     // As a visual que, blink led 1 time
-    digitalWrite(BRD_LED_PIN, HIGH);
-    my_delay(100);
-    digitalWrite(BRD_LED_PIN, LOW);
+    blink_board_led(1);
   #endif // DEBUG
 }
 
@@ -91,19 +89,13 @@ void stop_animation(void)
   bStarted_g = false;
   backup_sw_cnt_g = 0;
 
-  // Turn on PWMs (LED and MAGNET)
+  // Turn off PWMs (LED and MAGNET)
   analogWrite(PWM_LED_PIN, 0);
   analogWrite(PWM_MAG_PIN, 0);
   
   #if defined(DEBUG)
     // As a visual que, blink led 3 times
-    for (int i=0; i<3; i++)
-    {
-      digitalWrite(BRD_LED_PIN, HIGH);
-      my_delay(100);
-      digitalWrite(BRD_LED_PIN, LOW);
-      my_delay(200);
-    }
+    blink_board_led(3);
   #endif // DEBUG
 }
 
@@ -156,8 +148,8 @@ void init_serial(void)
   const uint32_t prescaler = SYS_PRESCALER;
 
   #if defined(DEBUG)
-    // initialize serial communication at 9600 bits per second:
-    Serial.begin(1200 * prescaler);
+    // initialize serial communication at 2400 bits per second:
+    Serial.begin(2400 * prescaler);
   #endif // DEBUG
 
   noInterrupts();
@@ -169,19 +161,28 @@ void init_serial(void)
 void init_state(void)
 {
   bStarted_g = false;
+}
 
-  /*
-  To avoid unintentional changes of clock frequency, a special write procedure must be followed to change the
-  CLKPS bits:
-  1. Write the Clock Prescaler Change Enable (CLKPCE) bit to one and all other bits in CLKPR to zero.
-  2. Within four cycles, write the desired value to CLKPS while writing a zero to CLKPCE.
-  Interrupts must be disabled when changing prescaler setting to make sure the write procedure is not interrupted.
-  */
-  // noInterrupts();
-  // CLKPR |= bit(7); // Setting CLKPCE to 1. Clock prescaler change enable
-  // CLKPR = 0x80; // Clear Clock Prescale old scaler by writing 0x80
-  // CLKPR = 4; // Set new prescaler to DIV_16=4
-  // interrupts();
+void blink_board_led(uint32_t blinks)
+{
+  #if defined(DEBUG)
+    if (blinks == 1)
+    {
+      digitalWrite(BRD_LED_PIN, HIGH);
+      my_delay(BLINK_PERIOD);
+      digitalWrite(BRD_LED_PIN, LOW);
+    }
+    else
+    {
+      for (int i=0; i<blinks; i++)
+      {
+        digitalWrite(BRD_LED_PIN, HIGH);
+        my_delay(BLINK_PERIOD);
+        digitalWrite(BRD_LED_PIN, LOW);
+        my_delay(BLINK_PERIOD);
+      }
+    }
+  #endif // DEBUG
 }
 
 void init_pins(void)
@@ -198,19 +199,17 @@ void init_pins(void)
   // Initialize mag pwm pin as digital output
   pinMode(PWM_MAG_PIN, OUTPUT);
 
+  // Turn off PWMs (LED and MAGNET)
+  analogWrite(PWM_LED_PIN, 0);
+  analogWrite(PWM_MAG_PIN, 0);
+
   #if defined(DEBUG)
     // Initialize Board LED for debug
     pinMode(BRD_LED_PIN, OUTPUT);
+    digitalWrite(BRD_LED_PIN, LOW);
 
     // As a visual que to know that we have started, toggle the pin 3 times
-    digitalWrite(BRD_LED_PIN, LOW);
-    for (int i=0; i<3; i++)
-    {
-      digitalWrite(BRD_LED_PIN, HIGH);
-      my_delay(100);
-      digitalWrite(BRD_LED_PIN, LOW);
-      my_delay(200);
-    }
+    blink_board_led(3);
   #endif //DEBUG
 }
 
@@ -225,12 +224,12 @@ void init_timers(void)
   TCCR0B |= 7;
   TCCR2B |= 7;
   // Up the prescaler to make it much slower
-  // 16Mhz / prescaler(1024) -> 15.625 kHz
+  // 16Mhz / sys_prescaler(64) = 250kHz -> / timer_prescaler(1024) = 244 Hz (ticks/s) -> (0.95Hz - 244Hz controllable PWM)
   TCCR0B &= 0xF8; // clear the CS field
   TCCR0B |= 5; // 5 = 1024 prescaler
   TCCR2B &= 0xF8; // clear the CS field
   TCCR2B |= 5; // 5 = 1024 prescaler
-  // Updating OCRA to 0xFF (to ensure same frequency)
+  // Initializing Periods of Timer compares (PWMs) to the slowest frequency
   OCR0A = 0xFF;
   OCR2A = 0xFF;
 

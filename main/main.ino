@@ -10,16 +10,11 @@ void setup() {
   // Initialize Variables
   init_state();
 
-  // Initialize GPIO Pins
-  init_pins();
-
   // Initialize Timers
   init_timers();
 
-  // Initialize PWMs
-
-  // Ensure that device is not animating
-  stop_animation();
+  // Initialize GPIO Pins
+  init_pins();
 
   #if defined(DEBUG)
     // Print Timer state

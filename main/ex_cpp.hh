@@ -10,6 +10,10 @@
 
 //---------
 //DEFINES, CONSTANTS, LITERALS
+
+
+#define SYS_PRESCALER (64)
+
 // Timers enabled in this project
 #define USE_TIMER_1 true
 #define USE_TIMER_2 false
@@ -20,16 +24,16 @@
 // Event values
 #define TIMER_1_ISR_EVT   (1<<0)
 
-#define TIMER_1_INTERVAL_MS 200L
+#define TIMER_1_INTERVAL_MS (200L / SYS_PRESCALER)
 #define NO_PENDING_EVENTS 0
 #define NOT_TRIGGERED 0
 
 #define SHOWTIME_DURATION_S   (5)
-#define SHOWTIME_DURATION_MS  (SHOWTIME_DURATION_S * 1000)
+#define SHOWTIME_DURATION_MS  (SHOWTIME_DURATION_S * 1000 / SYS_PRESCALER)
 #define SHOWTIME_DURATION     (SHOWTIME_DURATION_MS / TIMER_1_INTERVAL_MS)
 
 #define BACKUP_SW_HELD_DURATION_S   (1)
-#define BACKUP_SW_HELD_DURATION_MS  (BACKUP_SW_HELD_DURATION_S * 1000)
+#define BACKUP_SW_HELD_DURATION_MS  (BACKUP_SW_HELD_DURATION_S * 1000 / SYS_PRESCALER)
 #define BACKUP_SW_HELD_DURATION     (BACKUP_SW_HELD_DURATION_MS / TIMER_1_INTERVAL_MS)
 
 #define MAG_STATE_DETECTED        0
@@ -47,8 +51,9 @@
   #define my_printf(...) ;
 #endif // DEBUG
 
-#define SYS_PRESCALER (64)
-#define my_delay(...) delay((uint32_t)((__VA_ARGS__) / SYS_PRESCALER))
+#define BLINK_PERIOD_MS (150)
+#define BLINK_PERIOD    ((uint32_t)((float)BLINK_PERIOD_MS * 1000))
+#define my_delay(...) delayMicroseconds((uint32_t)((__VA_ARGS__) / SYS_PRESCALER))
 
 //---------
 // Variables
@@ -70,6 +75,7 @@ void update_mag_freq(uint32_t ticks);
 bool magnet_detected(void);
 uint32_t duration_sw_held(void);
 bool showtime_expired(void);
+void blink_board_led(uint32_t blinks);
 
 void print_timer_0_cfg(void);
 void print_timer_1_cfg(void);
