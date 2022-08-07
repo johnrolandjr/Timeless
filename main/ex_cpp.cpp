@@ -9,6 +9,8 @@
 
 uint32_t events_g;
 bool bStarted_g;
+uint8_t led_tick_period_s;
+uint8_t mag_tick_period_s;
 uint32_t backup_sw_cnt_g;
 int32_t showtime_count_g;
 
@@ -67,15 +69,21 @@ void start_animation(void)
   // That's too big of a resolution
   period_ticks = 128; // Aiming for 80Hz. 80Hz = 125ms. 16Mhz / 1024 = 15625 ticks / sec. -> 195 ticks
   period_shift = 0;
-  period_delta = 2; // Aiming for 2Hz. 2Hz = .5s / 4 [us/tick] = 
+  period_delta = 0; // Aiming for 2Hz. 2Hz = .5s / 4 [us/tick] = 
 
   // Update the frequencies prior to turning them on
-  update_led_freq(period_ticks + period_shift);
-  update_mag_freq(period_ticks + period_shift + period_delta);
+  uint32_t led_tick_period = period_ticks + period_shift;
+  uint32_t mag_tick_period = period_ticks + period_shift + period_delta;
+  update_led_freq(led_tick_period);
+  update_mag_freq(mag_tick_period);
+
+  my_printf("CLKPR = 0x" + String(CLKPR, HEX));
+  my_printf("OCR0A = 0x" + String(OCR0A, HEX));
+  my_printf("OCR2A = 0x" + String(OCR0A, HEX));
 
   // Turn on PWM Led
-  analogWrite(PWM_LED_PIN, 128);
-  analogWrite(PWM_MAG_PIN, 128);
+  analogWrite(PWM_LED_PIN, (led_tick_period_s>>1));
+  analogWrite(PWM_MAG_PIN, (mag_tick_period_s>>1));
 
   #if defined(DEBUG)
     // As a visual que, blink led 1 time
@@ -102,13 +110,15 @@ void stop_animation(void)
 void update_led_freq(uint32_t ticks)
 {
   // Updating OCRA which controls the period
-  OCR0A = (ticks > 255) ? 0xFF : ticks;
+  led_tick_period_s = (ticks > 255) ? 0xFF : ticks;
+  OCR0A = led_tick_period_s;
 }
 
 void update_mag_freq(uint32_t ticks)
 {
   // Updating OCRA which controls the period
-  OCR2A = (ticks > 255) ? 0xFF : ticks;
+  mag_tick_period_s = (ticks > 255) ? 0xFF : ticks;
+  OCR2A = mag_tick_period_s;
 }
 
 void timer_1_handler(void)
@@ -220,15 +230,19 @@ void init_timers(void)
   ITimer1.init();
 
   // Initialize Timer0 and Timer1
-  // Updating WGM 3 -> 7
-  TCCR0B |= 7;
-  TCCR2B |= 7;
+  // Updating WGM 3 -> 7 (=FastPwm, Top=OCR#A, Update @ bottom)
+  TCCR0A |= 3;
+  TCCR0B |= 0x8;
+  TCCR2A |= 3;
+  TCCR2B |= 0x8;
+
   // Up the prescaler to make it much slower
   // 16Mhz / sys_prescaler(64) = 250kHz -> / timer_prescaler(1024) = 244 Hz (ticks/s) -> (0.95Hz - 244Hz controllable PWM)
   TCCR0B &= 0xF8; // clear the CS field
   TCCR0B |= 5; // 5 = 1024 prescaler
   TCCR2B &= 0xF8; // clear the CS field
-  TCCR2B |= 5; // 5 = 1024 prescaler
+  TCCR2B |= 7; // 5 = 1024 prescaler
+
   // Initializing Periods of Timer compares (PWMs) to the slowest frequency
   OCR0A = 0xFF;
   OCR2A = 0xFF;

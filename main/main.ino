@@ -16,10 +16,9 @@ void setup() {
   // Initialize GPIO Pins
   init_pins();
 
-  #if defined(DEBUG)
-    // Print Timer state
-    print_timer_cfg();
-  #endif // DEBUG
+  my_printf("CLKPR = 0x" + String(CLKPR, HEX));
+  print_timer_0_cfg();
+  print_timer_2_cfg();
 }
 
 void loop() {
