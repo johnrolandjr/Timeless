@@ -43,7 +43,7 @@
 
 #define DISABLE_BACKUP_SWITCH
 
-#define DEBUG
+//#define DEBUG
 // DIFFERENT Print macros determined whether debug is enabled
 #if defined(DEBUG)
   #define my_printf(...) Serial.println(__VA_ARGS__)
@@ -58,6 +58,13 @@
 #define DUTY_CYCLE  (0.5f)
 
 #define BAUD_RATE   (9600)
+
+// Aproximately 0.3Hz per tick
+// 20Hz -> 60ticks
+#define MAX_DELTA   (60)
+
+#define ANA_MAX_3V3_READ (795)
+#define BRIGHTNESS_MIN_POT_READ (200)
 
 //---------
 // Variables
@@ -80,6 +87,9 @@ bool magnet_detected(void);
 uint32_t duration_sw_held(void);
 bool showtime_expired(void);
 void blink_board_led(uint32_t blinks);
+
+uint32_t get_delta(int pot_val);
+float get_brightness(int pot_val);
 
 void print_timer_0_cfg(void);
 void print_timer_1_cfg(void);

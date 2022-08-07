@@ -68,7 +68,9 @@ void start_animation(void)
   // CLKsys (16Mhz) prescaled(16) = 1MHz. CLKio (1MHz) prescaled(64) = 15625 Hz --> Range of (61Hz - 15625Hz)
   period_ticks = 195; // 195 measured 79.5Hz
   period_shift = 0; // (~0.3Hz / tick)
-  period_delta = 6; // (~0.3Hz / tick)
+
+  int delta_pot_val = analogRead(DELTA_POT_PIN);
+  period_delta = get_delta(delta_pot_val); // (~0.3Hz / tick)
 
   // Update the frequencies prior to turning them on
   uint32_t led_tick_period = period_ticks + period_shift;
@@ -78,7 +80,8 @@ void start_animation(void)
 
   // Turn on PWM Led
   // In the future, we may want to be able to change the brightness (aka the duty cycle)
-  float duty = DUTY_CYCLE;
+  int brightness_pot_val = analogRead(BRIGHTNESS_POT_PIN);
+  float duty = get_brightness(brightness_pot_val);
   analogWrite(PWM_LED_PIN, (uint32_t)(led_tick_period_s * duty));
   analogWrite(PWM_MAG_PIN, (uint32_t)(mag_tick_period_s * duty));
 
@@ -102,6 +105,36 @@ void stop_animation(void)
     // As a visual que, blink led 3 times
     blink_board_led(3);
   #endif // DEBUG
+}
+
+uint32_t get_delta(int pot_val)
+{
+  uint32_t delta = 0; // (~0.3Hz / tick)
+  float percent = 0.0f;
+  if (pot_val > ANA_MAX_3V3_READ)
+  {
+    pot_val = ANA_MAX_3V3_READ;
+  }
+  percent = ((float)pot_val / ANA_MAX_3V3_READ);
+
+  return ((uint32_t)(MAX_DELTA * percent));
+}
+
+float get_brightness(int pot_val)
+{
+  float duty = 0.0f;
+  if (pot_val > ANA_MAX_3V3_READ)
+  {
+    pot_val = ANA_MAX_3V3_READ;
+  }
+  else if(pot_val < BRIGHTNESS_MIN_POT_READ)
+  {
+    // Ensures that leds can't be turned completely off
+    pot_val = BRIGHTNESS_MIN_POT_READ;
+  }
+  duty = ((float)pot_val / ANA_MAX_3V3_READ);
+
+  return duty;
 }
 
 void update_led_freq(uint32_t ticks)
