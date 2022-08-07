@@ -57,6 +57,8 @@
 
 #define DUTY_CYCLE  (0.5f)
 
+#define BAUD_RATE   (9600)
+
 //---------
 // Variables
 extern uint32_t events_g;

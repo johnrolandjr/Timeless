@@ -156,7 +156,7 @@ void init_serial(void)
 
   #if defined(DEBUG)
     // initialize serial communication at 2400 bits per second:
-    Serial.begin(4800 * prescaler);
+    Serial.begin(BAUD_RATE * prescaler);
   #endif // DEBUG
 
   noInterrupts();
