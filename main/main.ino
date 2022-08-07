@@ -1,14 +1,16 @@
 #include "ex_cpp.hh"
 
 void setup() {
+
+  // Initialize Variables and system clock
+  init_state();
+
   #if defined(DEBUG)
     // Init Serial Debug
     init_serial();
-    my_printf("Initializing");
   #endif
-  
-  // Initialize Variables
-  init_state();
+
+  my_printf("Initializing");
 
   // Initialize Timers
   init_timers();

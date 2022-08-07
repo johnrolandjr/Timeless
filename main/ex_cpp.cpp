@@ -158,15 +158,16 @@ void init_serial(void)
     // initialize serial communication at 2400 bits per second:
     Serial.begin(BAUD_RATE * prescaler);
   #endif // DEBUG
-
-  noInterrupts();
-  CLKPR = _BV(CLKPCE);  // enable change of the clock prescaler
-  CLKPR = 4;  // divide frequency by 16(=4)
-  interrupts();
 }
 
 void init_state(void)
 {
+  // Set the System Prescaler
+  noInterrupts();
+  CLKPR = _BV(CLKPCE);  // enable change of the clock prescaler
+  CLKPR = 4;  // divide frequency by 16(=4)
+  interrupts();
+
   bStarted_g = false;
 }
 
