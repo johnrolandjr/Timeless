@@ -65,11 +65,10 @@ void start_animation(void)
   showtime_count_g = SHOWTIME_DURATION;
 
   // In the future, we may read an analog voltage and change the delta periods between magnet and led.
-  // CLKio (16Mhz) with a prescaler of 1024 => 15625 tick/sec -> (61Hz - 15.625 kHz) with a resolution of 60Hz...
-  // That's too big of a resolution
-  period_ticks = 128; // Aiming for 80Hz. 80Hz = 125ms. 16Mhz / 1024 = 15625 ticks / sec. -> 195 ticks
-  period_shift = 0;
-  period_delta = 0; // Aiming for 2Hz. 2Hz = .5s / 4 [us/tick] = 
+  // CLKsys (16Mhz) prescaled(16) = 1MHz. CLKio (1MHz) prescaled(64) = 15625 Hz --> Range of (61Hz - 15625Hz)
+  period_ticks = 195; // 195 measured 79.5Hz
+  period_shift = 0; // (~0.3Hz / tick)
+  period_delta = 6; // (~0.3Hz / tick)
 
   // Update the frequencies prior to turning them on
   uint32_t led_tick_period = period_ticks + period_shift;
@@ -77,13 +76,11 @@ void start_animation(void)
   update_led_freq(led_tick_period);
   update_mag_freq(mag_tick_period);
 
-  my_printf("CLKPR = 0x" + String(CLKPR, HEX));
-  my_printf("OCR0A = 0x" + String(OCR0A, HEX));
-  my_printf("OCR2A = 0x" + String(OCR0A, HEX));
-
   // Turn on PWM Led
-  analogWrite(PWM_LED_PIN, (led_tick_period_s>>1));
-  analogWrite(PWM_MAG_PIN, (mag_tick_period_s>>1));
+  // In the future, we may want to be able to change the brightness (aka the duty cycle)
+  float duty = DUTY_CYCLE;
+  analogWrite(PWM_LED_PIN, (uint32_t)(led_tick_period_s * duty));
+  analogWrite(PWM_MAG_PIN, (uint32_t)(mag_tick_period_s * duty));
 
   #if defined(DEBUG)
     // As a visual que, blink led 1 time
@@ -159,12 +156,12 @@ void init_serial(void)
 
   #if defined(DEBUG)
     // initialize serial communication at 2400 bits per second:
-    Serial.begin(2400 * prescaler);
+    Serial.begin(4800 * prescaler);
   #endif // DEBUG
 
   noInterrupts();
   CLKPR = _BV(CLKPCE);  // enable change of the clock prescaler
-  CLKPR = 6;  // divide frequency by 64(=6)
+  CLKPR = 4;  // divide frequency by 16(=4)
   interrupts();
 }
 
@@ -237,11 +234,13 @@ void init_timers(void)
   TCCR2B |= 0x8;
 
   // Up the prescaler to make it much slower
-  // 16Mhz / sys_prescaler(64) = 250kHz -> / timer_prescaler(1024) = 244 Hz (ticks/s) -> (0.95Hz - 244Hz controllable PWM)
+  //   CLKsys (16Mhz) prescaled(16) = 500kHz. CLKio (1MHz) prescaled(64) = 15625 Hz --> Range of (61Hz - 15625Hz) -> 195 ticks = 80.1Hz, 196 ticks = 79.7Hz (~.4Hz / tick)
+  // Timer 0 Scaler Options: 1(DIV_1), 2(DIV_8), 3(DIV_64), 4(DIV_256), 5(DIV_1024)
   TCCR0B &= 0xF8; // clear the CS field
-  TCCR0B |= 5; // 5 = 1024 prescaler
+  TCCR0B |= 3; // 3(DIV_64)
+  // Timer 2 Scaler Options: 1(DIV_1), 2(DIV_8), 3(DIV_32), 4(DIV_64), 5(DIV_128), 6(DIV_256), 7(DIV_1024)
   TCCR2B &= 0xF8; // clear the CS field
-  TCCR2B |= 7; // 5 = 1024 prescaler
+  TCCR2B |= 4; // 4(DIV_64)
 
   // Initializing Periods of Timer compares (PWMs) to the slowest frequency
   OCR0A = 0xFF;

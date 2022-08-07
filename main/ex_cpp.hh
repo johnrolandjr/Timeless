@@ -12,7 +12,7 @@
 //DEFINES, CONSTANTS, LITERALS
 
 
-#define SYS_PRESCALER (64)
+#define SYS_PRESCALER (16)
 
 // Timers enabled in this project
 #define USE_TIMER_1 true
@@ -54,6 +54,8 @@
 #define BLINK_PERIOD_MS (150)
 #define BLINK_PERIOD    ((uint32_t)((float)BLINK_PERIOD_MS * 1000))
 #define my_delay(...) delayMicroseconds((uint32_t)((__VA_ARGS__) / SYS_PRESCALER))
+
+#define DUTY_CYCLE  (0.5f)
 
 //---------
 // Variables
