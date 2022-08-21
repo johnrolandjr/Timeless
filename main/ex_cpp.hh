@@ -24,7 +24,7 @@
 // Event values
 #define TIMER_1_ISR_EVT   (1<<0)
 
-#define TIMER_1_INTERVAL_MS (200L / SYS_PRESCALER)
+#define TIMER_1_INTERVAL_MS (100L / SYS_PRESCALER)
 #define NO_PENDING_EVENTS 0
 #define NOT_TRIGGERED 0
 
@@ -63,8 +63,8 @@
 // 20Hz -> 60ticks
 #define MAX_DELTA   (60)
 
-#define ANA_MAX_3V3_READ (795)
-#define BRIGHTNESS_MIN_POT_READ (200)
+#define ANA_MAX_3V3_READ (736)
+#define BRIGHTNESS_MIN_POT_READ (1)
 
 //---------
 // Variables
@@ -83,6 +83,7 @@ void start_animation(void);
 void stop_animation(void);
 void update_led_freq(uint32_t ticks);
 void update_mag_freq(uint32_t ticks);
+void update_brightness(void);
 bool magnet_detected(void);
 uint32_t duration_sw_held(void);
 bool showtime_expired(void);

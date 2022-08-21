@@ -41,6 +41,11 @@ void process_main_loop(void)
     {
       stop_animation();
     }
+    else
+    {
+      // Even if the it's not time to stop the show, update the brightness
+      update_brightness();
+    }
   }
   else
   {
@@ -79,16 +84,31 @@ void start_animation(void)
   update_mag_freq(mag_tick_period);
 
   // Turn on PWM Led
-  // In the future, we may want to be able to change the brightness (aka the duty cycle)
-  int brightness_pot_val = analogRead(BRIGHTNESS_POT_PIN);
-  float duty = get_brightness(brightness_pot_val);
-  analogWrite(PWM_LED_PIN, (uint32_t)(led_tick_period_s * duty));
-  analogWrite(PWM_MAG_PIN, (uint32_t)(mag_tick_period_s * duty));
+  update_brightness();
+  
+  // Turn on PWM Magnet
+  analogWrite(PWM_MAG_PIN, (uint32_t)(mag_tick_period_s / 2));
 
   #if defined(DEBUG)
     // As a visual que, blink led 1 time
     blink_board_led(1);
   #endif // DEBUG
+}
+
+void update_brightness(void)
+{
+  if (bStarted_g == true)
+  {
+    // If we have started, turn the led according to this moment's voltage reading on the potentiometer
+    int brightness_pot_val = analogRead(BRIGHTNESS_POT_PIN);
+    float duty = get_brightness(brightness_pot_val);
+    analogWrite(PWM_LED_PIN, (uint32_t)(led_tick_period_s * duty));
+  }
+  else
+  {
+    // If we haven't started, ensure that the led is off
+    analogWrite(PWM_LED_PIN, 0);
+  }
 }
 
 void stop_animation(void)
