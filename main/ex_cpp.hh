@@ -11,7 +11,6 @@
 //---------
 //DEFINES, CONSTANTS, LITERALS
 
-
 #define SYS_PRESCALER (16)
 
 // Timers enabled in this project
@@ -64,7 +63,7 @@
 #define MAX_DELTA   (60)
 
 #define ANA_MAX_3V3_READ (736)
-#define BRIGHTNESS_MIN_POT_READ (1)
+#define BRIGHTNESS_MIN_POT_READ (10)
 
 //---------
 // Variables

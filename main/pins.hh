@@ -24,7 +24,7 @@
 #define BK_UP_PIN       11
 
 // Potentiometer read to change different settings on the fly
-#define BRIGHTNESS_POT_PIN  (A0)
+#define BRIGHTNESS_POT_PIN  (A2)
 #define DELTA_POT_PIN       (A1)
 
 #endif // PINS_H
