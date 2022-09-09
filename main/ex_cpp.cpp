@@ -2,10 +2,13 @@
 #include "ex_cpp.hh"
 #include "pins.hh"
 
+bool bStarted = false;
+uint32_t backup_sw_cnt_g;
 uint8_t led_period;
 uint8_t mag_period;
 uint8_t led_on_ticks;
 uint8_t mag_on_ticks;
+int32_t showtime_count_g;
 
 void delay_ms(uint32_t ms)
 {
