@@ -24,11 +24,12 @@ void setup() {
 
   // Set the pwm timers clocks to be disabled as a start
   stop_pwm();
+
+  // For debugging purposes, start the timer
+  start_pwm();
 }
 
 void loop() {
-  start_pwm();
   delay_ms(100);
-  stop_pwm();
-  delay_ms(100);
+  update_led_pwm();
 }

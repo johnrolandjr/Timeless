@@ -42,5 +42,6 @@ int make_linear(int pot_val);
 uint8_t get_delta(int pot_val);
 void start_pwm(void);
 void stop_pwm(void);
+void update_led_pwm(void);
 
 #endif // EX_CPP_H
