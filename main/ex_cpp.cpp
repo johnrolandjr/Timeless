@@ -58,7 +58,8 @@ void process_main_loop(void)
     #if defined(DISABLE_BACKUP_SWITCH)
       if (magnet_detected())
     #else
-      if (magnet_detected() || (duration_sw_held() > BACKUP_SW_HELD_DURATION))
+      //if (magnet_detected() || (duration_sw_held() > BACKUP_SW_HELD_DURATION))
+      if (true)
     #endif // DISABLE_BACKUP_SWITCH
       {
         start_animation();
@@ -72,9 +73,6 @@ void start_animation(void)
 
   bStarted_g = true;
   showtime_count_g = SHOWTIME_DURATION;
-
-  // Initializes the Frequencies and the PWM
-  update_show();
 
   // Enable the timers to begin PWM Output
   start_pwm();
@@ -93,32 +91,31 @@ void update_show(void)
   period_ticks = 195; // 195 measured 79.5Hz
   period_shift = 0; // (~0.3Hz / tick)
 
+  // Read Potentiometers
   int delta_pot_val = analogRead(DELTA_POT_PIN);
   period_delta = get_delta(delta_pot_val); // (~0.3Hz / tick)
-
-  // Stop both PWM clocks temporarily
-  TCCR0B &= ~(7);
-  TCCR2B &= ~(7);
-
-  // Update the frequencies prior to turning them on
-  led_period = period_ticks + period_shift;
-  mag_period = period_ticks + period_shift + period_delta;
-  OCR0A = led_period;
-  OCR2A = mag_period;
-
-  // Set LED PWM according to this moment's voltage reading on the potentiometer
   int brightness_pot_val = analogRead(BRIGHTNESS_POT_PIN);
   float duty = get_brightness(brightness_pot_val);
+
+  // Update the frequencies prior to turning them on
+  led_period = period_ticks + period_shift + period_delta;
+  //mag_period = period_ticks + period_shift;
+  //OCR0A = led_period;
+  //OCR2A = mag_period;
+
+  // Set LED PWM according to this moment's voltage reading on the potentiometer
   led_on_ticks = (uint8_t)(led_period * duty);
-  OCR0B = led_on_ticks;
+  //OCR0B = led_on_ticks;
 
   // Set duty cycle of Magnet PWM to 50%
   // B is tied to the output
-  OCR2B = (mag_period >> 1);
+  //OCR2B = (mag_period >> 1);
 
-  // Resume the clocks
-  TCCR0B |= _BV(CS01) | _BV(CS00);
-  TCCR2B |= _BV(CS22);
+  // Only updating the LED PWM signal
+  // Also, updating it at t=0 so that it is glitch free
+  while(TCNT0 != 0){}
+  OCR0A = led_period;
+  OCR0B = led_on_ticks;
 }
 
 void stop_animation(void)
@@ -356,13 +353,30 @@ void stop_pwm(void)
 
 void start_pwm(void)
 {
-  // Update periods (aka frequencies) via updating OCnA as that is TOP
+  int8_t period_ticks, period_shift, period_delta;
+  // In the future, we may read an analog voltage and change the delta periods between magnet and led.
+  // CLKsys (16Mhz) prescaled(16) = 1MHz. CLKio (1MHz) prescaled(64) = 15625 Hz --> Range of (61Hz - 15625Hz)
+  period_ticks = 195; // 195 measured 79.5Hz
+  period_shift = 0; // (~0.3Hz / tick)
+
+  int delta_pot_val = analogRead(DELTA_POT_PIN);
+  period_delta = get_delta(delta_pot_val); // (~0.3Hz / tick)
+
+  // Update the frequencies prior to turning them on
+  led_period = period_ticks + period_shift;
+  mag_period = period_ticks + period_shift + period_delta;
   OCR0A = led_period-1;
   OCR2A = mag_period-1;
 
-  // Update duty cycle via updating OCnB
+  // Set LED PWM according to this moment's voltage reading on the potentiometer
+  int brightness_pot_val = analogRead(BRIGHTNESS_POT_PIN);
+  float duty = get_brightness(brightness_pot_val);
+  led_on_ticks = (uint8_t)(led_period * duty);
   OCR0B = led_on_ticks-1;
-  OCR2B = mag_on_ticks-1;
+
+  // Set duty cycle of Magnet PWM to 50%
+  // B is tied to the output
+  OCR2B = (mag_period >> 1)-1;
 
   // Set PWM Mode to FastPWM
   // Initializing LED but OC0n disconnected
