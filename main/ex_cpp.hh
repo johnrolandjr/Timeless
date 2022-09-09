@@ -11,22 +11,6 @@
 //---------
 //DEFINES, CONSTANTS, LITERALS
 
-#define SYS_PRESCALER (16)
-
-// Timers enabled in this project
-#define USE_TIMER_1 true
-#define USE_TIMER_2 false
-#define USE_TIMER_3 false
-#define USE_TIMER_4 false
-#define USE_TIMER_5 false
-
-// Event values
-#define TIMER_1_ISR_EVT   (1<<0)
-
-#define TIMER_1_INTERVAL_MS (100L / SYS_PRESCALER)
-#define NO_PENDING_EVENTS 0
-#define NOT_TRIGGERED 0
-
 #define SHOWTIME_DURATION_S   (300)
 #define SHOWTIME_DURATION_MS  (SHOWTIME_DURATION_S * 1000 / SYS_PRESCALER)
 #define SHOWTIME_DURATION     (SHOWTIME_DURATION_MS / TIMER_1_INTERVAL_MS)
@@ -42,59 +26,21 @@
 
 //#define DISABLE_BACKUP_SWITCH
 
-//#define DEBUG
-// DIFFERENT Print macros determined whether debug is enabled
-#if defined(DEBUG)
-  #define my_printf(...) Serial.println(__VA_ARGS__)
-#else
-  #define my_printf(...) ;
-#endif // DEBUG
-
-#define BLINK_PERIOD_MS (150)
-#define BLINK_PERIOD    ((uint32_t)((float)BLINK_PERIOD_MS * 1000))
-#define my_delay(...) delayMicroseconds((uint32_t)((__VA_ARGS__) / SYS_PRESCALER))
-
-#define DUTY_CYCLE  (0.5f)
-
-#define BAUD_RATE   (9600)
-
-// Aproximately 0.3Hz per tick
-// 20Hz -> 60ticks
-#define MAX_DELTA   (60)
-
 #define ANA_MAX_3V3_READ (755)
-#define BRIGHTNESS_MIN_POT_READ (5)
 
 //---------
 // Variables
-extern uint32_t events_g;
-extern bool bStarted_g;
+extern uint8_t led_period;
+extern uint8_t mag_period;
+extern uint8_t led_on_ticks;
+extern uint8_t mag_on_ticks;
 
 //---------
 // Function Prototypes 
-void init_serial(void);
-void init_state(void);
-void init_pins(void);
-void init_timers(void);
-void process_event(void);
-void process_main_loop(void);
-void start_animation(void);
-void stop_animation(void);
-void update_led_freq(uint32_t ticks);
-void update_mag_freq(uint32_t ticks);
-void update_brightness(void);
-void update_show(void);
-bool magnet_detected(void);
-uint32_t duration_sw_held(void);
-bool showtime_expired(void);
-void blink_board_led(uint32_t blinks);
-void stop_pwm(void);
-void start_pwm(void);
-
+void delay_ms(uint32_t ms);
+int make_linear(int pot_val);
 uint8_t get_delta(int pot_val);
-
-//---------
-// ISR Function Prototypes
-void timer_1_handler(void);
+void start_pwm(void);
+void stop_pwm(void);
 
 #endif // EX_CPP_H
