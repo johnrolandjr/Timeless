@@ -12,7 +12,12 @@ bool bStarted_g;
 uint8_t led_tick_period_s;
 uint8_t mag_tick_period_s;
 uint32_t backup_sw_cnt_g;
-int32_t showtime_count_g;
+uint32_t showtime_count_g;
+
+uint8_t led_period;
+uint8_t mag_period;
+uint8_t led_on_ticks;
+uint8_t mag_on_ticks;
 
 void process_event(void)
 {
@@ -43,8 +48,8 @@ void process_main_loop(void)
     }
     else
     {
-      // Even if the it's not time to stop the show, update the brightness
-      update_brightness();
+      // Even if the it's not time to stop the show, update the the frequencies and pwms (brightness)
+      update_show();
     }
   }
   else
@@ -63,12 +68,26 @@ void process_main_loop(void)
 
 void start_animation(void)
 {
-  int32_t period_ticks, period_shift, period_delta;
   my_printf("Start Animation");
 
   bStarted_g = true;
   showtime_count_g = SHOWTIME_DURATION;
 
+  // Initializes the Frequencies and the PWM
+  update_show();
+
+  // Enable the timers to begin PWM Output
+  start_pwm();
+
+  #if defined(DEBUG)
+    // As a visual que, blink led 1 time
+    blink_board_led(1);
+  #endif // DEBUG
+}
+
+void update_show(void)
+{
+  int8_t period_ticks, period_shift, period_delta;
   // In the future, we may read an analog voltage and change the delta periods between magnet and led.
   // CLKsys (16Mhz) prescaled(16) = 1MHz. CLKio (1MHz) prescaled(64) = 15625 Hz --> Range of (61Hz - 15625Hz)
   period_ticks = 195; // 195 measured 79.5Hz
@@ -77,38 +96,29 @@ void start_animation(void)
   int delta_pot_val = analogRead(DELTA_POT_PIN);
   period_delta = get_delta(delta_pot_val); // (~0.3Hz / tick)
 
+  // Stop both PWM clocks temporarily
+  TCCR0B &= ~(7);
+  TCCR2B &= ~(7);
+
   // Update the frequencies prior to turning them on
-  uint32_t led_tick_period = period_ticks + period_shift;
-  uint32_t mag_tick_period = period_ticks + period_shift + period_delta;
-  update_led_freq(led_tick_period);
-  update_mag_freq(mag_tick_period);
+  led_period = period_ticks + period_shift;
+  mag_period = period_ticks + period_shift + period_delta;
+  OCR0A = led_period;
+  OCR2A = mag_period;
 
-  // Turn on PWM Led
-  update_brightness();
-  
-  // Turn on PWM Magnet
-  analogWrite(PWM_MAG_PIN, (uint32_t)(mag_tick_period_s / 2));
+  // Set LED PWM according to this moment's voltage reading on the potentiometer
+  int brightness_pot_val = analogRead(BRIGHTNESS_POT_PIN);
+  float duty = get_brightness(brightness_pot_val);
+  led_on_ticks = (uint8_t)(led_period * duty);
+  OCR0B = led_on_ticks;
 
-  #if defined(DEBUG)
-    // As a visual que, blink led 1 time
-    blink_board_led(1);
-  #endif // DEBUG
-}
+  // Set duty cycle of Magnet PWM to 50%
+  // B is tied to the output
+  OCR2B = (mag_period >> 1);
 
-void update_brightness(void)
-{
-  if (bStarted_g == true)
-  {
-    // If we have started, turn the led according to this moment's voltage reading on the potentiometer
-    int brightness_pot_val = analogRead(BRIGHTNESS_POT_PIN);
-    float duty = get_brightness(brightness_pot_val);
-    analogWrite(PWM_LED_PIN, (uint32_t)(led_tick_period_s * duty));
-  }
-  else
-  {
-    // If we haven't started, ensure that the led is off
-    analogWrite(PWM_LED_PIN, 0);
-  }
+  // Resume the clocks
+  TCCR0B |= _BV(CS01) | _BV(CS00);
+  TCCR2B |= _BV(CS22);
 }
 
 void stop_animation(void)
@@ -117,9 +127,8 @@ void stop_animation(void)
   bStarted_g = false;
   backup_sw_cnt_g = 0;
 
-  // Turn off PWMs (LED and MAGNET)
-  analogWrite(PWM_LED_PIN, 0);
-  analogWrite(PWM_MAG_PIN, 0);
+  // Enable the timers to begin PWM Output
+  stop_pwm();
   
   #if defined(DEBUG)
     // As a visual que, blink led 3 times
@@ -135,7 +144,7 @@ uint32_t get_delta(int pot_val)
   {
     pot_val = ANA_MAX_3V3_READ;
   }
-  percent = ((float)pot_val / ANA_MAX_3V3_READ);
+  percent = ((float)pot_val / (ANA_MAX_3V3_READ + 10)); // Adding 10 so that we can't get 100% pwm
 
   return ((uint32_t)(MAX_DELTA * percent));
 }
@@ -152,7 +161,7 @@ float get_brightness(int pot_val)
     // Ensures that leds can't be turned completely off
     pot_val = BRIGHTNESS_MIN_POT_READ;
   }
-  duty = ((float)pot_val / ANA_MAX_3V3_READ);
+  duty = ((float)pot_val / (ANA_MAX_3V3_READ + 10)); // Adding 10 so that we can't get 100% pwm
 
   return duty;
 }
@@ -198,7 +207,7 @@ uint32_t duration_sw_held(void)
 bool showtime_expired(void)
 {
   bool bExpired = false;
-  if (--showtime_count_g <= 0)
+  if (--showtime_count_g == 0)
     bExpired = true;
   return bExpired;
 }
@@ -222,6 +231,10 @@ void init_state(void)
   interrupts();
 
   bStarted_g = false;
+  led_period = 0xFF; // Initializing to slowest frequency
+  mag_period = 0xFF;
+  led_on_ticks = 0x80; // Initializing to 50% duty cycle
+  mag_on_ticks = 0x80;
 }
 
 void blink_board_led(uint32_t blinks)
@@ -254,16 +267,6 @@ void init_pins(void)
   // Initialize backup switch as digital input
   pinMode(BK_UP_PIN, INPUT);
 
-  // Initialize led pwm pin as digital output
-  pinMode(PWM_LED_PIN, OUTPUT);
-
-  // Initialize mag pwm pin as digital output
-  pinMode(PWM_MAG_PIN, OUTPUT);
-
-  // Turn off PWMs (LED and MAGNET)
-  analogWrite(PWM_LED_PIN, 0);
-  analogWrite(PWM_MAG_PIN, 0);
-
   #if defined(DEBUG)
     // Initialize Board LED for debug
     pinMode(BRD_LED_PIN, OUTPUT);
@@ -280,25 +283,32 @@ void init_timers(void)
   
   ITimer1.init();
 
-  // Initialize Timer0 and Timer1
-  // Updating WGM 3 -> 7 (=FastPwm, Top=OCR#A, Update @ bottom)
-  TCCR0A |= 3;
-  TCCR0B |= 0x8;
-  TCCR2A |= 3;
-  TCCR2B |= 0x8;
+  // Initializing LED but OC0n disconnected
+  TCCR0A |= _BV(WGM01) | _BV(WGM00);
+  TCCR0B |= _BV(WGM02);
+  
+  // Initializing PWM but OC2n disconnected
+  TCCR2A |= _BV(WGM21) | _BV(WGM20);
+  TCCR2B |= _BV(WGM22);
 
-  // Up the prescaler to make it much slower
-  //   CLKsys (16Mhz) prescaled(16) = 500kHz. CLKio (1MHz) prescaled(64) = 15625 Hz --> Range of (61Hz - 15625Hz) -> 195 ticks = 80.1Hz, 196 ticks = 79.7Hz (~.4Hz / tick)
-  // Timer 0 Scaler Options: 1(DIV_1), 2(DIV_8), 3(DIV_64), 4(DIV_256), 5(DIV_1024)
-  TCCR0B &= 0xF8; // clear the CS field
-  TCCR0B |= 3; // 3(DIV_64)
-  // Timer 2 Scaler Options: 1(DIV_1), 2(DIV_8), 3(DIV_32), 4(DIV_64), 5(DIV_128), 6(DIV_256), 7(DIV_1024)
-  TCCR2B &= 0xF8; // clear the CS field
-  TCCR2B |= 4; // 4(DIV_64)
+  // Initialize led pwm pin as digital output
+  pinMode(PWM_LED_PIN, OUTPUT);
+
+  // Initialize mag pwm pin as digital output
+  pinMode(PWM_MAG_PIN, OUTPUT);
+
+  // Extra write to ensure Timer2 is using the correct clock
+  ASSR = 0;
+
+  // Set the pwm timers clocks to be disabled as a start
+  stop_pwm();
 
   // Initializing Periods of Timer compares (PWMs) to the slowest frequency
   OCR0A = 0xFF;
   OCR2A = 0xFF;
+
+  // Ensuring that Timers 0, 1, and 2 are enabled all the time
+  PRR &= 0x87; // Clearing bits 6, 5, (4 reserved), and 3
 
   // Interval in unsigned long millisecs
   #if defined(DEBUG)
@@ -311,73 +321,63 @@ void init_timers(void)
   #endif // DEBUG
 }
 
-void print_timer_0_cfg(void)
+void stop_pwm(void)
 {
-  my_printf("Timer 0");
-  my_printf("----------------------------------- ");
-  my_printf("TCCR0A = 0x" + String(TCCR0A, HEX));
-  my_printf("TCCR0B = 0x" + String(TCCR0B, HEX));
-  my_printf("TCNT0 = 0x" + String(TCNT0, HEX));
-  my_printf("OCR0A = 0x" + String(OCR0A, HEX));
-  my_printf("OCR0B = 0x" + String(OCR0B, HEX));
-  my_printf("TIMSK0 = 0x" + String(TIMSK0, HEX));
-  my_printf("TIFR0 = 0x" + String(TIFR0, HEX));
-  my_printf("----------------------------------- ");
-}
+  // Stop the clocks
+  TCCR0B &= ~(7);
+  TCCR2B &= ~(7);
 
-void print_timer_1_cfg(void)
-{
-  uint16_t h;
-  uint16_t l;
-  uint16_t u16val;
-
-  my_printf("Timer 1 (most likely used by delay()");
-  my_printf("----------------------------------- ");
-  my_printf("TCCR1A = 0x" + String(TCCR1A, HEX));
-  my_printf("TCCR1B = 0x" + String(TCCR1B, HEX));
-  my_printf("TCCR1C = 0x" + String(TCCR1C, HEX));
-  h = TCNT1H;
-  l = TCNT1L;
-  u16val = (h << 8) + l;
-  my_printf("TCNT1 = 0x" + String(u16val, HEX));
-  h = OCR1AH;
-  l = OCR1AL;
-  u16val = (h << 8) + l;
-  my_printf("OCR1A = 0x" + String(u16val, HEX));
-  h = OCR1BH;
-  l = OCR1BL;
-  u16val = (h << 8) + l;
-  my_printf("OCR1B = 0x" + String(u16val, HEX));
-  my_printf("TIMSK1 = 0x" + String(TIMSK1, HEX));
-  my_printf("TIFR1 = 0x" + String(TIFR1, HEX));
-  my_printf("----------------------------------- ");
-}
-
-void print_timer_2_cfg(void)
-{
-  my_printf("Timer 2");
-  my_printf("----------------------------------- ");
-  my_printf("TCCR2A = 0x" + String(TCCR2A, HEX));
-  my_printf("TCCR2B = 0x" + String(TCCR2B, HEX));
-  my_printf("TCNT2 = 0x" + String(TCNT2, HEX));
-  my_printf("OCR2A = 0x" + String(OCR2A, HEX));
-  my_printf("OCR2B = 0x" + String(OCR2B, HEX));
-  my_printf("TIMSK2 = 0x" + String(TIMSK2, HEX));
-  my_printf("TIFR2 = 0x" + String(TIFR2, HEX));
-  my_printf("ASSR = 0x" + String(ASSR, HEX));
-  my_printf("GTCCR = 0x" + String(GTCCR, HEX));
-  my_printf("----------------------------------- ");
-}
-
-void print_timer_cfg(void)
-{
-  // print out system prescaler
-  my_printf("System");
-  my_printf("----------------------------------- ");
-  my_printf("CLKPR = 0x" + String(CLKPR, HEX));
-  my_printf("----------------------------------- ");
+  // Reset Output Compare Value via Force
+  // Force is only active when WGM bits are on a non PWM mode
+  // Set to Waveform Generator Mode = normal mode = 0
+  TCCR0A &= ~(_BV(WGM01) | _BV(WGM00)); 
+  TCCR0B &= ~_BV(WGM02);
+  // Reset Count
+  TCNT0 = 0;
+  // Set Compare Output Mode to normal mode
+  TCCR0A &= ~(_BV(COM0B1) | _BV(COM0B0));
+  // Force the Compare Output (since timer is not running and it's reset to 0), it should be forced low)
+  TCCR0A |= _BV(FOC0B);
+  TCCR0A &= ~_BV(FOC0B);
   
-  print_timer_0_cfg();
-  print_timer_1_cfg();
-  print_timer_2_cfg();
+  // Reset Output Compare Value via Force
+  // Force is only active when WGM bits are on a non PWM mode
+  // Set to Waveform Generator Mode = normal mode = 0
+  TCCR2A &= ~(_BV(WGM21) | _BV(WGM20)); 
+  TCCR2B &= ~_BV(WGM22);
+  // Reset Count
+  TCNT2 = 0;
+  // Set Compare Output Mode to non inverting
+  TCCR2A &= ~(_BV(COM2B1) | _BV(COM2B0));
+  // Force the Compare Output (since timer is not running and it's reset to 0), it should be forced low)
+  TCCR2A |= _BV(FOC2B);
+  TCCR2A &= ~_BV(FOC2B);
+}
+
+void start_pwm(void)
+{
+  // Update periods (aka frequencies) via updating OCnA as that is TOP
+  OCR0A = led_period-1;
+  OCR2A = mag_period-1;
+
+  // Update duty cycle via updating OCnB
+  OCR0B = led_on_ticks-1;
+  OCR2B = mag_on_ticks-1;
+
+  // Set PWM Mode to FastPWM
+  // Initializing LED but OC0n disconnected
+  TCCR0A |= _BV(WGM01) | _BV(WGM00);
+  TCCR0B |= _BV(WGM02);
+  
+  // Initializing PWM but OC2n disconnected
+  TCCR2A |= _BV(WGM21) | _BV(WGM20);
+  TCCR2B |= _BV(WGM22);
+  
+  // Set Compare Output Mode to be non inverting mode
+  TCCR0A |= _BV(COM0B1);
+  TCCR2A |= _BV(COM2B1);
+
+  // Start PWMs by setting the clock
+  TCCR0B |= _BV(CS01) | _BV(CS00);
+  TCCR2B |= _BV(CS22);
 }

@@ -27,7 +27,7 @@
 #define NO_PENDING_EVENTS 0
 #define NOT_TRIGGERED 0
 
-#define SHOWTIME_DURATION_S   (5)
+#define SHOWTIME_DURATION_S   (300)
 #define SHOWTIME_DURATION_MS  (SHOWTIME_DURATION_S * 1000 / SYS_PRESCALER)
 #define SHOWTIME_DURATION     (SHOWTIME_DURATION_MS / TIMER_1_INTERVAL_MS)
 
@@ -63,7 +63,7 @@
 #define MAX_DELTA   (60)
 
 #define ANA_MAX_3V3_READ (736)
-#define BRIGHTNESS_MIN_POT_READ (10)
+#define BRIGHTNESS_MIN_POT_READ (5)
 
 //---------
 // Variables
@@ -83,18 +83,16 @@ void stop_animation(void);
 void update_led_freq(uint32_t ticks);
 void update_mag_freq(uint32_t ticks);
 void update_brightness(void);
+void update_show(void);
 bool magnet_detected(void);
 uint32_t duration_sw_held(void);
 bool showtime_expired(void);
 void blink_board_led(uint32_t blinks);
+void stop_pwm(void);
+void start_pwm(void);
 
 uint32_t get_delta(int pot_val);
 float get_brightness(int pot_val);
-
-void print_timer_0_cfg(void);
-void print_timer_1_cfg(void);
-void print_timer_2_cfg(void);
-void print_timer_cfg(void);
 
 //---------
 // ISR Function Prototypes

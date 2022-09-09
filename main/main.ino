@@ -1,7 +1,6 @@
 #include "ex_cpp.hh"
 
 void setup() {
-
   // Initialize Variables and system clock
   init_state();
 
