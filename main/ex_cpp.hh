@@ -62,7 +62,7 @@
 // 20Hz -> 60ticks
 #define MAX_DELTA   (60)
 
-#define ANA_MAX_3V3_READ (736)
+#define ANA_MAX_3V3_READ (755)
 #define BRIGHTNESS_MIN_POT_READ (5)
 
 //---------
@@ -91,8 +91,7 @@ void blink_board_led(uint32_t blinks);
 void stop_pwm(void);
 void start_pwm(void);
 
-uint32_t get_delta(int pot_val);
-float get_brightness(int pot_val);
+uint8_t get_delta(int pot_val);
 
 //---------
 // ISR Function Prototypes

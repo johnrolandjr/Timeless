@@ -85,7 +85,7 @@ void start_animation(void)
 
 void update_show(void)
 {
-  int8_t period_ticks, period_shift, period_delta;
+  uint8_t period_ticks, period_shift, period_delta;
   // In the future, we may read an analog voltage and change the delta periods between magnet and led.
   // CLKsys (16Mhz) prescaled(16) = 1MHz. CLKio (1MHz) prescaled(64) = 15625 Hz --> Range of (61Hz - 15625Hz)
   period_ticks = 195; // 195 measured 79.5Hz
@@ -95,27 +95,19 @@ void update_show(void)
   int delta_pot_val = analogRead(DELTA_POT_PIN);
   period_delta = get_delta(delta_pot_val); // (~0.3Hz / tick)
   int brightness_pot_val = analogRead(BRIGHTNESS_POT_PIN);
-  float duty = get_brightness(brightness_pot_val);
 
   // Update the frequencies prior to turning them on
   led_period = period_ticks + period_shift + period_delta;
-  //mag_period = period_ticks + period_shift;
-  //OCR0A = led_period;
-  //OCR2A = mag_period;
 
   // Set LED PWM according to this moment's voltage reading on the potentiometer
-  led_on_ticks = (uint8_t)(led_period * duty);
-  //OCR0B = led_on_ticks;
-
-  // Set duty cycle of Magnet PWM to 50%
-  // B is tied to the output
-  //OCR2B = (mag_period >> 1);
+  uint8_t duty = get_delta(brightness_pot_val); // 1 <= duty <= 0xFE
+  led_on_ticks = (uint8_t)((uint32_t)duty * (led_period - 1) >> 8); // 1 <= led_on_ticks <= led_period-1
 
   // Only updating the LED PWM signal
   // Also, updating it at t=0 so that it is glitch free
   while(TCNT0 != 0){}
-  OCR0A = led_period;
   OCR0B = led_on_ticks;
+  OCR0A = led_period;
 }
 
 void stop_animation(void)
@@ -133,34 +125,67 @@ void stop_animation(void)
   #endif // DEBUG
 }
 
-uint32_t get_delta(int pot_val)
+int make_linear(int pot_val)
 {
-  uint32_t delta = 0; // (~0.3Hz / tick)
-  float percent = 0.0f;
-  if (pot_val > ANA_MAX_3V3_READ)
+  int out;
+  int frac = ANA_MAX_3V3_READ / 4;
+  if (pot_val < 0)
   {
-    pot_val = ANA_MAX_3V3_READ;
+    out = 0;
   }
-  percent = ((float)pot_val / (ANA_MAX_3V3_READ + 10)); // Adding 10 so that we can't get 100% pwm
-
-  return ((uint32_t)(MAX_DELTA * percent));
+  else if (pot_val < 50)
+  {
+    out = map(pot_val, 0, 50, 0, frac);
+  }
+  else if (pot_val < 117)
+  {
+    out = map(pot_val, 50, 117, frac, 2*frac);
+  }
+  else if (pot_val < 340)
+  {
+    out = map(pot_val, 117, 340, 2*frac, 3*frac);
+  }
+  else
+  {
+    out = map(pot_val, 340, ANA_MAX_3V3_READ, 3*frac, 4*frac);
+  }
+  return out;
 }
 
-float get_brightness(int pot_val)
+uint8_t get_delta(int pot_val)
 {
-  float duty = 0.0f;
-  if (pot_val > ANA_MAX_3V3_READ)
-  {
-    pot_val = ANA_MAX_3V3_READ;
-  }
-  else if(pot_val < BRIGHTNESS_MIN_POT_READ)
-  {
-    // Ensures that leds can't be turned completely off
-    pot_val = BRIGHTNESS_MIN_POT_READ;
-  }
-  duty = ((float)pot_val / (ANA_MAX_3V3_READ + 10)); // Adding 10 so that we can't get 100% pwm
+  uint32_t delta = 0;
+  uint8_t ret = 0;
 
-  return duty;
+  // Before we do anything, make the pot value more linear
+  pot_val = make_linear(pot_val);
+  
+  if (pot_val < 0)
+  {
+    pot_val = 0;
+  }
+
+  if (pot_val >= ANA_MAX_3V3_READ)
+  {
+    ret = 0xFF;
+  }
+  else
+  {
+    delta = (uint32_t) pot_val;
+    delta = ((delta << 8) / ANA_MAX_3V3_READ);
+    ret = (uint8_t) delta;
+  }
+  
+  // get_delta should never return 0 or 255 as we always want some sort of PWM
+  if (ret == 0)
+  {
+    ret = 1;
+  }
+  else if (ret >= 0xFF)
+  {
+    ret = 0xFE;
+  }
+  return ret;
 }
 
 void update_led_freq(uint32_t ticks)
@@ -353,7 +378,7 @@ void stop_pwm(void)
 
 void start_pwm(void)
 {
-  int8_t period_ticks, period_shift, period_delta;
+  uint8_t period_ticks, period_shift, period_delta;
   // In the future, we may read an analog voltage and change the delta periods between magnet and led.
   // CLKsys (16Mhz) prescaled(16) = 1MHz. CLKio (1MHz) prescaled(64) = 15625 Hz --> Range of (61Hz - 15625Hz)
   period_ticks = 195; // 195 measured 79.5Hz
@@ -361,6 +386,8 @@ void start_pwm(void)
 
   int delta_pot_val = analogRead(DELTA_POT_PIN);
   period_delta = get_delta(delta_pot_val); // (~0.3Hz / tick)
+  int brightness_pot_val = analogRead(BRIGHTNESS_POT_PIN);
+  led_on_ticks = get_delta(brightness_pot_val);
 
   // Update the frequencies prior to turning them on
   led_period = period_ticks + period_shift;
@@ -369,9 +396,6 @@ void start_pwm(void)
   OCR2A = mag_period-1;
 
   // Set LED PWM according to this moment's voltage reading on the potentiometer
-  int brightness_pot_val = analogRead(BRIGHTNESS_POT_PIN);
-  float duty = get_brightness(brightness_pot_val);
-  led_on_ticks = (uint8_t)(led_period * duty);
   OCR0B = led_on_ticks-1;
 
   // Set duty cycle of Magnet PWM to 50%
