@@ -15,7 +15,7 @@ bool magnet_detected(void)
 {
   int state = digitalRead(MAG_DETECT_PIN);
   
-  return false;//(state == MAG_STATE_DETECTED);
+  return (state == MAG_STATE_DETECTED);
 }
 
 void start_animation(void)
@@ -102,6 +102,11 @@ void loop() {
     {
       // Showtime over, stop the animation
       stop_animation();
+    }
+    else
+    {
+      // Update the brightness and "slowness" if we are still in showtime
+      update_led_pwm();
     }
     // Wait for next time to see if showtime is done
     my_delay_ms(UPDATE_MS);
