@@ -12,16 +12,16 @@
 //DEFINES, CONSTANTS, LITERALS
 #define SYS_PRESCALER (16)
 
-#define UPDATE_MS (50)
-#define SHOWTIME_CHECK_MS (200)
+#define UPDATE_MS (100)
+#define SHOWTIME_CHECK_MS (100)
 
-#define SHOWTIME_DURATION_S   (1)
-#define SHOWTIME_DURATION_MS  (((SHOWTIME_DURATION_S * 8772) + (SYS_PRESCALER - 1)) / SYS_PRESCALER)
-#define SHOWTIME_ITER         ((SHOWTIME_DURATION_MS + (UPDATE_MS - 1)) / UPDATE_MS)
+#define SHOWTIME_DURATION_S   (4)
+#define SHOWTIME_DURATION     ((uint32_t)((float)SHOWTIME_DURATION_S / 1.128))
+#define SHOWTIME_1_SEC_CNT    ((1000 + (UPDATE_MS - 1)) / UPDATE_MS)
 
-#define BACKUP_SW_HELD_DURATION_S   (2)
-#define BACKUP_SW_HELD_DURATION_MS  (((BACKUP_SW_HELD_DURATION_S * 15000) + (SYS_PRESCALER - 1)) / SYS_PRESCALER)
-#define BACKUP_SW_HELD_ITER         ((BACKUP_SW_HELD_DURATION_MS + (SHOWTIME_CHECK_MS - 1)) / SHOWTIME_CHECK_MS)
+#define BKUP_HOLD_DURATION_S  (2)
+#define BKUP_HOLD_DURATION    ((uint32_t)((float)BKUP_HOLD_DURATION_S / 1.128))
+#define BKUP_HOLD_1_SEC_CNT   ((1000 + (SHOWTIME_CHECK_MS - 1)) / SHOWTIME_CHECK_MS)
 
 #define MAG_STATE_DETECTED        0
 #define MAG_STATE_NOT_PRESENT     1
@@ -34,7 +34,7 @@
 // Variables
 extern bool bStarted;
 extern uint32_t backup_sw_cnt_g;
-extern int32_t showtime_count_g;
+extern int showtime_count_g;
 extern uint8_t led_period;
 extern uint8_t mag_period;
 extern uint8_t led_on_ticks;
@@ -42,7 +42,7 @@ extern uint8_t mag_on_ticks;
 
 //---------
 // Function Prototypes 
-void delay_ms(uint32_t ms);
+void my_delay_ms(uint32_t ms);
 int make_linear(int pot_val);
 uint8_t get_delta(int pot_val);
 void start_pwm(void);

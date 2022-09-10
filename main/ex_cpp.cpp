@@ -3,15 +3,28 @@
 #include "pins.hh"
 
 bool bStarted = false;
+int showtime_count_g;
 uint32_t backup_sw_cnt_g;
 uint8_t led_period;
 uint8_t mag_period;
 uint8_t led_on_ticks;
 uint8_t mag_on_ticks;
-int32_t showtime_count_g;
 
-void delay_ms(uint32_t ms)
+void my_delay_ms(uint32_t ms)
 {
+  float tmp = 1.024; // actual time 1.024 ms / tick
+  float f_ticks = ms / tmp;
+  uint16_t i_ticks;
+
+  if (f_ticks > 0xFFFF)
+  {
+    i_ticks = 0xFFFF;
+  }
+  else
+  {
+    i_ticks = (uint16_t)f_ticks;
+  }
+  
   // Timer 1 is stopped by default
   // Reset timer count = 0
   TCNT1 = 0;
@@ -20,7 +33,7 @@ void delay_ms(uint32_t ms)
   TCCR1B = 5;
 
   // Wait until low byte is greater than requested number of ms
-  while(TCNT1L < ms){};
+  while(TCNT1 < ms){};
 
   // Stop timer 1
   TCCR1B = 0;

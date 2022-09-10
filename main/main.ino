@@ -15,43 +15,18 @@ bool magnet_detected(void)
 {
   int state = digitalRead(MAG_DETECT_PIN);
   
-  return (state == MAG_STATE_DETECTED);
-}
-
-uint32_t duration_sw_held(void)
-{
-  int state = digitalRead(BK_UP_PIN);
-  backup_sw_cnt_g++;
-
-  if (state == BACKUP_SW_STATE_RELEASED)
-    backup_sw_cnt_g = 0;
-
-  return backup_sw_cnt_g;
-}
-
-bool showtime_expired(void)
-{
-  bool bExpired = false;
-  if (--showtime_count_g <= 0)
-    bExpired = true;
-  return bExpired;
+  return false;//(state == MAG_STATE_DETECTED);
 }
 
 void start_animation(void)
 {
   bStarted = true;
-  showtime_count_g = SHOWTIME_ITER;
-
-  // Setup up and start the PWMs (LED and Magnet)
   start_pwm();
 }
 
 void stop_animation(void)
 {
   bStarted = false;
-  backup_sw_cnt_g = 0;
-
-  // Turn off PWMs (LED and MAGNET)
   stop_pwm();
 }
 
@@ -94,29 +69,47 @@ void setup() {
 
 // Arduino Main Loop
 void loop() {
-  if (bStarted)
-  {
-    if (showtime_expired())
-    {
-      // Showtime over, stop the animation
-      stop_animation();
-    }
-    else
-    {
-      // If it's still showtime, update the led brightness and pwm accordingly
-      update_led_pwm();
-    }
-    // Wait for next time to see if showtime is done
-    delay_ms(UPDATE_MS);
-  }
-  else
+  uint32_t timer1_cnt_g;
+  uint32_t bkup_hold_sec_g;
+  uint32_t showtime_sec_g;
+  
+  // Pre showtime
+  timer1_cnt_g=0;
+  bkup_hold_sec_g=0;
+  while (bStarted == false)
   {
     // Currently not animating. Check to see whether it's time to start now.
-    if (magnet_detected() || (duration_sw_held() > BACKUP_SW_HELD_ITER))
+    if (magnet_detected() || (bkup_hold_sec_g >= BKUP_HOLD_DURATION))
     {
       start_animation();
     }
     // Wait for next check
-    delay_ms(SHOWTIME_CHECK_MS);
+    my_delay_ms(SHOWTIME_CHECK_MS);
+    timer1_cnt_g++;
+    if (timer1_cnt_g > BKUP_HOLD_1_SEC_CNT)
+    {
+      timer1_cnt_g=0;
+      bkup_hold_sec_g++;
+    }
+  }
+  
+  // Showtime
+  timer1_cnt_g=0;
+  showtime_sec_g=0;
+  while (bStarted == true)
+  {
+    if (showtime_sec_g >= SHOWTIME_DURATION)
+    {
+      // Showtime over, stop the animation
+      stop_animation();
+    }
+    // Wait for next time to see if showtime is done
+    my_delay_ms(UPDATE_MS);
+    timer1_cnt_g++;
+    if (timer1_cnt_g > SHOWTIME_1_SEC_CNT)
+    {
+      timer1_cnt_g=0;
+      showtime_sec_g++;
+    }
   }
 }
