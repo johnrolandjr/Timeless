@@ -30,23 +30,23 @@
 
 #define ANA_MAX_3V3_READ (755)
 
+#define BASE_LED_PERIOD (255)
+
 //---------
 // Variables
 extern bool bStarted;
 extern uint32_t backup_sw_cnt_g;
 extern int showtime_count_g;
-extern uint8_t led_period;
-extern uint8_t mag_period;
-extern uint8_t led_on_ticks;
-extern uint8_t mag_on_ticks;
 
 //---------
 // Function Prototypes 
 void my_delay_ms(uint32_t ms);
 int make_linear(int pot_val);
 uint8_t get_delta(int pot_val);
-void start_pwm(void);
 void stop_pwm(void);
-void update_led_pwm(void);
+void start_pwm(void);
+void update_led(void);
+void update_led_pwm(uint8_t period, uint8_t on_period);
+void calculate_led_pwm(uint8_t * p_period, uint8_t * p_on_period);
 
 #endif // EX_CPP_H

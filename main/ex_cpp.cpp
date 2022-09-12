@@ -5,10 +5,6 @@
 bool bStarted = false;
 int showtime_count_g;
 uint32_t backup_sw_cnt_g;
-uint8_t led_period;
-uint8_t mag_period;
-uint8_t led_on_ticks;
-uint8_t mag_on_ticks;
 
 void my_delay_ms(uint32_t ms)
 {
@@ -102,52 +98,6 @@ uint8_t get_delta(int pot_val)
   return ret;
 }
 
-void start_pwm(void)
-{
-  uint8_t period_ticks, period_shift, period_delta;
-  // In the future, we may read an analog voltage and change the delta periods between magnet and led.
-  // CLKsys (16Mhz) prescaled(16) = 1MHz. CLKio (1MHz) prescaled(64) = 15625 Hz --> Range of (61Hz - 15625Hz)
-  period_ticks = 195; // 195 measured 79.5Hz
-  period_shift = 0; // (~0.3Hz / tick)
-
-  int delta_pot_val = analogRead(DELTA_POT_PIN);
-  uint8_t period_shift_duty;
-  period_shift_duty = get_delta(delta_pot_val); // (~0.3Hz / tick)
-  int brightness_pot_val = analogRead(BRIGHTNESS_POT_PIN);
-  uint8_t led_duty = get_delta(brightness_pot_val);
-
-  // Update the frequencies prior to turning them on
-  period_delta = map(period_shift_duty, 0, 0xFF, 0, 60);
-  led_period = period_ticks + period_shift + period_delta;
-  led_on_ticks = map(led_duty, 0, 255, 0, led_period);
-  mag_period = period_ticks;
-
-  // Set LED PWM according to this moment's voltage reading on the potentiometer
-  OCR0A = led_period; // period
-  OCR0B = led_on_ticks; // duty
-
-  // Set Magnet PWM duty cycle to 50%
-  OCR2A = mag_period-1; // period
-  OCR2B = (mag_period >> 1); // duty
-
-  // Set PWM Mode to FastPWM
-  // Initializing LED but OC0n disconnected
-  TCCR0A |= _BV(WGM01) | _BV(WGM00);
-  TCCR0B |= _BV(WGM02);
-  
-  // Initializing PWM but OC2n disconnected
-  TCCR2A |= _BV(WGM21) | _BV(WGM20);
-  TCCR2B |= _BV(WGM22);
-  
-  // Set Compare Output Mode to be non inverting mode
-  TCCR0A |= _BV(COM0B1);
-  TCCR2A |= _BV(COM2B1);
-
-  // Start PWMs by setting the clock
-  TCCR0B |= _BV(CS01) | _BV(CS00);
-  TCCR2B |= _BV(CS22);
-}
-
 void stop_pwm(void)
 {
   // Stop the clocks
@@ -181,29 +131,77 @@ void stop_pwm(void)
   TCCR2A &= ~_BV(FOC2B);
 }
 
-void update_led_pwm(void)
+void start_pwm(void)
 {
-  uint8_t period_ticks, period_shift, period_delta;
-  // In the future, we may read an analog voltage and change the delta periods between magnet and led.
-  // CLKsys (16Mhz) prescaled(16) = 1MHz. CLKio (1MHz) prescaled(64) = 15625 Hz --> Range of (61Hz - 15625Hz)
-  period_ticks = 195; // 195 measured 79.5Hz
-  period_shift = 0; // (~0.3Hz / tick)
+  uint8_t led_period;
+  uint8_t led_on_period;
+  uint8_t mag_period = BASE_LED_PERIOD;
 
-  int delta_pot_val = analogRead(DELTA_POT_PIN);
+  calculate_led_pwm(&led_period, &led_on_period);
+
+  update_led_pwm(led_period, led_on_period);
+
+  // Set Magnet PWM duty cycle to 50%
+  OCR2A = mag_period-1; // period
+  OCR2B = (mag_period >> 1); // duty
+
+  // Set PWM Mode to FastPWM
+  // Initializing LED but OC0n disconnected
+  TCCR0A |= _BV(WGM01) | _BV(WGM00);
+  TCCR0B |= _BV(WGM02);
+  
+  // Initializing PWM but OC2n disconnected
+  TCCR2A |= _BV(WGM21) | _BV(WGM20);
+  TCCR2B |= _BV(WGM22);
+  
+  // Set Compare Output Mode to be non inverting mode
+  TCCR0A |= _BV(COM0B1);
+  TCCR2A |= _BV(COM2B1);
+
+  // Start PWMs by setting the clock
+  TCCR0B |= _BV(CS01) | _BV(CS00);
+  TCCR2B |= _BV(CS22);
+}
+
+void update_led(void)
+{
+  uint8_t led_period;
+  uint8_t led_on_period;
+
+  calculate_led_pwm(&led_period, &led_on_period);
+
+  // To avoid a flickering, wait until timer is 0
+  while(TCNT0 != 0){};
+  
+  update_led_pwm(led_period, led_on_period);
+}
+
+void calculate_led_pwm(uint8_t * p_period, uint8_t * p_on_period)
+{
+  uint8_t period;
+  uint8_t period_delta;
   uint8_t period_shift_duty;
+  
+  // In the future, we may read an analog voltage and change the delta periods between magnet and led.
+  // CLKsys (16Mhz) prescaled(16) = 1MHz. CLKio (1MHz) prescaled(64) = 15625 Hz --> Range of (61Hz - 15625Hz) (~0.3Hz / tick)
+  // (15625 Hz) / (desired frequency) = ticks for desired frequency
+  period = BASE_LED_PERIOD;
+
+  // Calculate both duty values (0x00 - 0xFF)
+  int delta_pot_val = analogRead(DELTA_POT_PIN);
   period_shift_duty = get_delta(delta_pot_val); // (~0.3Hz / tick)
   int brightness_pot_val = analogRead(BRIGHTNESS_POT_PIN);
   uint8_t led_duty = get_delta(brightness_pot_val);
 
   // Update the frequencies prior to turning them on
   period_delta = map(period_shift_duty, 0, 0xFF, 0, 60);
-  led_period = period_ticks + period_shift + period_delta;
-  led_on_ticks = map(led_duty, 0, 255, 0, led_period);
+  *p_period = (period - period_delta);
+  *p_on_period = map(led_duty, 0, 255, 0, *p_period);
+}
 
-  // To avoid a flickering, wait until timer is 0
-  while(TCNT0 != 0){};
-  
+void update_led_pwm(uint8_t period2, uint8_t on_period2)
+{
   // Set LED PWM according to this moment's voltage reading on the potentiometer
-  OCR0A = led_period; // period
-  OCR0B = led_on_ticks; // duty
+  OCR0A = period2; // period
+  OCR0B = on_period2; // duty
 }

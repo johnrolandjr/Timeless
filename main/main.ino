@@ -106,7 +106,7 @@ void loop() {
     else
     {
       // Update the brightness and "slowness" if we are still in showtime
-      update_led_pwm();
+      update_led();
     }
     // Wait for next time to see if showtime is done
     my_delay_ms(UPDATE_MS);
